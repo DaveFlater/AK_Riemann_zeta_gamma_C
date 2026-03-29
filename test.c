@@ -1,5 +1,4 @@
 // test.f90 by Alexey Kuznetsov
-// Last updated: 5-Dec-2025
 // Manually converted to C by David Flater 2026-03-09
 // © Alexey Kuznetsov and David Flater BSD-3-Clause
 
@@ -115,16 +114,17 @@ int main ([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
     }
     print_f128(maxerr, L"Max error");
   }{
-    wprintf(L"\nTest 5:  compute ζ(s) for s=-1,-3,-5,-7,-9\n");
-    const _Float128 g[5] = {-1.0f128/12, 1.0f128/120, -1.0f128/252,
-                            1.0f128/240, -1.0f128/132};
+    wprintf(L"\nTest 5:  compute ζ(s) for s=0,-1,-3,-5,-7,-9\n");
+    const _Float128 g[6] = {-0.5f128, -1.0f128/12, 1.0f128/120,
+			    -1.0f128/252, 1.0f128/240, -1.0f128/132};
     _Float128 maxerr = 0;
-    for (int8_t k=1; k<=5; ++k) {
+    for (int8_t k=0; k<=5; ++k) {
+      const int8_t s = (k ? 1-2*k : 0);
       wchar_t name[10];
-      swprintf(name, 10, L"ζ(%d)", 1-2*k);
+      swprintf(name, 10, L"ζ(%d)", s);
       const _Float128 _Complex
-        computed_val = Riemann_zeta(CMPLXF128(1-2*k, 0)),
-        expected_val = CMPLXF128(g[k-1], 0);
+        computed_val = Riemann_zeta(CMPLXF128(s, 0)),
+        expected_val = CMPLXF128(g[k], 0);
       const _Float128 err = cabsf128(computed_val - expected_val);
       print_f128_complex(computed_val, name);
       if (err > maxerr) maxerr = err;
