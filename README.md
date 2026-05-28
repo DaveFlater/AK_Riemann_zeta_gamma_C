@@ -156,7 +156,7 @@ The C standard library does not yet provide real or complex versions of
 zeta, zeta prime, or psi.  Some names from other libraries:
 
 Function | [GNU Scientific Library](https://www.gnu.org/software/gsl/doc/html/specfunc.html) | [C++ standard library](https://en.cppreference.com/cpp/numeric/special_functions) | [Boost Math](https://www.boost.org/doc/libs/latest/libs/math/doc/html/special.html) | [Python mpmath](https://mpmath.org)
---- | --- | --- | --- | ---
+:---: | --- | --- | --- | ---
 ζ     | gsl_sf_zeta    | riemann_zeta | zeta    | zeta
 ζ′    |                |              |         | zeta (with derivative=1)
 log Γ | gsl_sf_lngamma | lgamma       | lgamma  | loggamma
@@ -165,9 +165,9 @@ log Γ | gsl_sf_lngamma | lgamma       | lgamma  | loggamma
 Point 2:  the precision is indicated by an optional 1-letter suffix:
 
 Suffix | C data type | Meaning on x86
---- | --- | ---
+:---: | --- | ---
 f | float | 32 bits (single precision)
-  | double | 64 bits (double precision)
+  | double | 64 bits (double precision)
 l | long double | 80 bits (extended precision)
 q | _Float128 | 128 bits (quad precision)
 
@@ -251,4 +251,4 @@ _Float32 |  4 |  FLT32 |  6 |  9
 _Float64 |  8 |  FLT64 | 15 | 17
   double |  8 |    DBL | 15 | 17
 long double | 16 |   LDBL | 18 | 21
-_Float128 | 16 | FLT128 | 33 | 36
+  _Float128 | 16 | FLT128 | 33 | 36
