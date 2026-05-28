@@ -1,5 +1,5 @@
 // © 2026 David Flater BSD-3-Clause
-// Common includes for zeta.c, gamma.c, and test.c.
+// Common includes for tests and demos
 
 /*
   Infrastructure for parsing and printing values.  It's rather cumbersome.
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "Riemann_zeta.h"
+#include "akzeta.h"
 #include <sysexits.h>
 
 #ifdef __cplusplus
@@ -30,9 +30,15 @@
   #include <cwchar>
   extern "C" void init_stdout ();
   extern "C" void format_f128 (_Float128 f, char buf[80]);
-  extern "C" void print_f128 (_Float128 f, wchar_t const name[]);
+  extern "C" void print_f128 (_Float128 f,
+			      wchar_t const name[],
+			      uint8_t namewidth);
   extern "C" void print_f128_complex (_Float128 _Complex c,
-				      wchar_t const name[]);
+				      wchar_t const name[],
+				      uint8_t namewidth);
+  extern "C" void print_f64_complex (double _Complex c,
+				     wchar_t const name[],
+				     uint8_t namewidth);
   extern "C" void scan_f128 (char const buf[], _Float128 *f);
 
   // This macro and declarations disappear in C++ mode.
@@ -54,9 +60,19 @@
   #include <wchar.h>
   extern void init_stdout ();
   extern void format_f128 (_Float128 f, char buf[80]);
-  extern void print_f128 (_Float128 f, wchar_t const name[]);
+  extern void print_f128 (_Float128 f,
+			  wchar_t const name[],
+			  uint8_t namewidth);
   extern void print_f128_complex (_Float128 _Complex c,
-				  wchar_t const name[]);
+				  wchar_t const name[],
+				  uint8_t namewidth);
+  extern void print_f64_complex (double _Complex c,
+				 wchar_t const name[],
+				 uint8_t namewidth);
   extern void scan_f128 (char const buf[], _Float128 *f);
 
 #endif
+
+// Abbreviations
+#define Re(s) (__real__ s)
+#define Im(s) (__imag__ s)

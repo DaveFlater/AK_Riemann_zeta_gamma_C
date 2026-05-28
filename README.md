@@ -2,11 +2,47 @@
 
 ## Overview
 
-This is a C language integration and demo of the Riemann_zeta and ln_gamma
-functions that Dr. Alexey Kuznetsov provided on
-[GitHub](https://github.com/Alexey-Kuznetsov-math/Riemann_zeta-and-Gamma),
-specifically, the quad precision Fortran versions.  They are usable in C++ as
-extern "C" functions.
+This is a C language integration and demo of some functions that Dr. Alexey
+Kuznetsov implemented in Fortran and provided on
+[GitHub](https://github.com/Alexey-Kuznetsov-math/Riemann_zeta-and-Gamma).
+They are usable in C++ as extern "C" functions.
+
+Function | Description
+--- | ---
+czeta, czetaq | [Riemann zeta function ζ](https://en.wikipedia.org/wiki/Riemann_zeta_function) (double and quad precision implementations)
+czetap, czetapq | Riemann zeta function ζ and its first derivative ζ′ (double and quad precision implementations)
+clgammaq | Natural logarithm of the [gamma function Γ](https://en.wikipedia.org/wiki/Gamma_function) (quad precision only)
+cpsiq | [Psi, alias digamma, function ψ](https://en.wikipedia.org/wiki/Digamma_function) = Γ′/Γ (quad precision only)
+
+The names bound to the functions were chosen for consistency with the [C
+standard library](https://en.cppreference.com/c/numeric) as far as that went
+and then with the [GCC quad-precision math library
+(libquadmath)](https://gcc.gnu.org/onlinedocs/gcc-16.1.0/libquadmath/)
+thereafter.  See [notes below](#namconv) for an explanation of the naming
+conventions.
+
+The new functions are provided by libakzeta and declared in akzeta.h:
+
+    typedef struct {
+      double _Complex zeta;
+      double _Complex zetap;
+    } czetap_result;
+
+    typedef struct {
+      _Float128 _Complex zeta;
+      _Float128 _Complex zetap;
+    } czetapq_result;
+
+       double _Complex czeta    (_Float128 _Complex s);
+    _Float128 _Complex czetaq   (_Float128 _Complex s);
+         czetap_result czetap   (_Float128 _Complex s);
+        czetapq_result czetapq  (_Float128 _Complex s);
+    _Float128 _Complex clgammaq (_Float128 _Complex z);
+    _Float128 _Complex cpsiq    (_Float128 _Complex z);
+
+Functions czeta and czetap use _Float128 internally, but they do shorter
+calculations to produce fewer significant digits than czetaq and czetapq.
+There would be no advantage in limiting their inputs to double precision.
 
 A GNU environment (GNU make, gcc, gfortran, GNU libc, etc.) is assumed.  The
 source code of included programs uses GNU extensions.
@@ -14,15 +50,52 @@ source code of included programs uses GNU extensions.
 My additions are © 2026 David Flater but are provided under the same terms
 as the originals (BSD 3-Clause License).
 
-## Functional profile
+## Usable range and accuracy
 
-You may read Dr. Kuznetsov's own overview
-[here](https://github.com/Alexey-Kuznetsov-math/Riemann_zeta-and-Gamma).
+|Im(s)| must not exceed 2.8e+19.  If it does, the library will just exit.
 
-Background:  [Riemann
-zeta](https://en.wikipedia.org/wiki/Riemann_zeta_function) ζ(s) and
-[gamma](https://en.wikipedia.org/wiki/Gamma_function) Γ(z) are described on
-Wikipedia.  [[Gourdon and Sebah
+For |Im(s)| < 100, the expected accuracy of czetaq and czetapq is about 31
+decimal digits.  As |Im(s)| increases, the number of good digits decreases to
+approximately 32−log₁₀(|Im(s)|).
+
+clgammaq is expected to maintain a relative accuracy of 10⁻³³.  cpsiq is
+expected to maintain a relative accuracy of 10⁻³² except when z is close to
+the negative real axis, where accuracy degrades.
+
+Practically, accuracy stated in such terms does not apply in the vicinity of
+the trivial zeros, the poles of ζ and Γ, or far into the negative half-plane
+where 128-bit floats overflow (Re(s) < −2312.5).
+
+The accuracy of czeta and czetap is capped at 15 digits since that is the
+limit of the double precision data type.
+
+## Algorithms
+
+The zeta functions implement a new algorithm that is described in
+[[preprint](https://arxiv.org/abs/2503.09519), [paywalled
+DOI](https://doi.org/10.1016/j.cam.2026.117791)].  It combines the main sum
+of
+[Riemann–Siegel](https://en.wikipedia.org/wiki/Riemann%E2%80%93Siegel_formula)
+with a simple approximation of the remainder term.
+
+The zeta functions divide the domain as follows:
+
+- For points close to the origin (abs(s) < 0.01), use a Taylor series.
+- If Re(s) < ½, apply the reflection formula and continue with 1 − s.
+- For |Im(s)| < 400, use whichever of
+  [Euler–Maclaurin](https://en.wikipedia.org/wiki/Riemann_zeta_function#Numerical_algorithms)
+  or a Dirichlet series has lower computational complexity for s.
+- Otherwise, use whichever of Kuznetsov's algorithm or a Dirichlet series
+  has lower computational complexity for s.
+
+The gamma and psi functions implement a new alternative to [Lanczos
+approximation](https://en.wikipedia.org/wiki/Lanczos_approximation) that is
+described in [[preprint](https://arxiv.org/abs/2109.12061), [paywalled
+DOI](https://doi.org/10.1016/j.cam.2022.114270)] and
+[[preprint](https://arxiv.org/pdf/2508.19095),
+[paywalled DOI](https://doi.org/10.1016/j.cam.2026.117756)].
+
+[[Gourdon and Sebah
 2003](http://numbers.computation.free.fr/Constants/Miscellaneous/zetaevaluations.pdf)]
 provides an introduction to previous algorithms for approximating zeta in
 regions where a Dirichlet series summation does not suffice (Euler–Maclaurin,
@@ -31,101 +104,86 @@ Borwein, Riemann–Siegel, Odlyzko–Schönhage).  See also [[Borwein
 Algorithms 2 and 3, which Gourdon and Sebah referred to as Proposition 1 and
 2 under the convergence of alternating series method.
 
-The function Riemann_zeta implements a new algorithm, hereinafter called
-Kuznetsov 2025, that is described in
-[[preprint](https://arxiv.org/abs/2503.09519)].  It combines the main sum of
-Riemann–Siegel with a simple approximation of the remainder term.
-
-Riemann_zeta divides the domain as follows:
-
-- For points very close to the origin (abs(s) < 10⁻⁴), use a Taylor series.
-- If Re(s) < ½, apply the reflection formula and continue with 1 − s.
-- For |Im(s)| < 200, use whichever of Euler–Maclaurin or a Dirichlet series
-  has lower computational complexity for s.
-- For |Im(s)| ≥ 200 and Re(s) < 4, use Kuznetsov 2025. \*
-- Otherwise, use whichever of Kuznetsov 2025 or a Dirichlet series
-  has lower computational complexity for s.
-
-\* The band in which Kuznetsov 2025 has lower computational complexity than
-the Dirichlet series is much wider than Re(s) < 4 near the origin but
-narrows as |Im(s)| becomes larger.  The equal complexity curve intersects
-Re(s) = 4 at s ≈ 4 ± 3.7064778166393348×10²²i.  Above that height, the Re(s)
-< 4 condition takes over.  For Euler–Maclaurin, the Re(s) < 4 condition is
-moot:  the band is wider than Re(s) < 4 for all |Im(s)| < 200.
-
-The expected accuracy is about 31 decimal digits for |Im(s)| < 100, 30
-decimal digits for |Im(s)| < 1000, etc., losing one digit with each factor of
-10 increase in Im(s).  \[This needs some qualification, as it does not hold
-for the trivial zeros as Re(s) becomes a sufficiently large, even negative
-integer.\]
-
-The function ln_gamma implements a new alternative to [Lanczos
-approximation](https://en.wikipedia.org/wiki/Lanczos_approximation) that is
-described in [[preprint](https://arxiv.org/abs/2109.12061), [paywalled
-DOI](https://doi.org/10.1016/j.cam.2022.114270)] and
-[[preprint](https://arxiv.org/pdf/2508.19095)].  It is expected to maintain
-accuracy on the order of 5×10⁻³².
-
-## Code
-
-The functions themselves are provided by [Riemann_zeta.f90](Riemann_zeta.f90)
-and [Riemann_zeta.h](Riemann_zeta.h).  You build the Fortran as Fortran and
-link it with C/C++ code as the demo programs demonstrate.
-
-Riemann_zeta.f90 is a lightly modified version of
-[Fortran/Riemann_zeta.f90](https://github.com/Alexey-Kuznetsov-math/Riemann_zeta-and-Gamma/blob/main/Fortran/Riemann_zeta.f90)
-as of [commit
-d1baff0c67374d90c668bcc1562f66134fb95a28](https://github.com/Alexey-Kuznetsov-math/Riemann_zeta-and-Gamma/commit/d1baff0c67374d90c668bcc1562f66134fb95a28),
-Date:  Thu Mar 26 12:02:00 2026 -0400.
-
-The changes that I made are:
-
-- Converted Riemann_zeta.f90 to module form following the example of
-[MATLAB_Fortran_mex/Riemann_zeta_module.f90](https://github.com/Alexey-Kuznetsov-math/Riemann_zeta-and-Gamma/blob/main/MATLAB_Fortran_mex/Riemann_zeta_module.f90).
-- Changed the declarations of Riemann_zeta and ln_gamma to use C bindings.
-- Untabified and stripped trailing whitespace.
-
 ## Demo programs
 
-- zeta:  Test Riemann_zeta from the command line.
-Usage: zeta sreal simag
-- gamma:  Test ln_gamma from the command line.
-Usage: gamma zreal zimag
-- test:  Run noninteractive test suite for Riemann_zeta and ln_gamma.  This
-is
-[test.f90](https://github.com/Alexey-Kuznetsov-math/Riemann_zeta-and-Gamma/blob/main/Fortran/test.f90)
-manually converted to C to establish that the results are the same as they
-were in Fortran.
+- czetap:  Test czetap from the command line.
+Usage: czetap sreal simag
+- czetapq:  Test czetapq from the command line.
+Usage: czetapq sreal simag
+- clgammaq:  Test clgammaq from the command line.
+Usage: clgammaq zreal zimag
+- cpsiq:  Test cpsiq from the command line.
+Usage: cpsiq zreal zimag
+- test:  Run noninteractive test suite.
+Usage: test
 
-To build all three programs normally, just type `make`.
+To build all demo programs normally, just type `make`.
 
-To build all three programs in C++ mode, type `make cxx`.  The C++ binaries
-will be called zeta_cxx, gamma_cxx, and test_cxx.
+To build all demo programs in C++ mode, type `make cxx`.  The C++ binaries
+will be called czetap_cxx, czetapq_cxx, etc.
 
 ## Sample output
 
-- [test_out_f90.txt](test_out_f90.txt):  Sample output of the original
-test.f90 built according to the author's instructions.
-- [test_out_c.txt](test_out_c.txt):  Sample output of test.c.
-
-Enough digits are printed to show that the values are the same down to the
-last bit.
-
-The max error of Test 3 is expected to change from run to run because it uses
-random data.  The reported error is typically on the order of 5×10⁻³², but if
-one of the randomly chosen test points happens to be near one of the poles of
-the gamma function (zero and the negative integers), it can become infinite.
+- [test_out.txt](test_out.txt):  Sample output of test.c.
+- [test_out_upstream_Fortran.txt](test_out_upstream_Fortran.txt):
+Sample output of the upstream test.f90 built according to the author's
+instructions.
+- [test_out_upstream_Python_Fortran.txt](test_out_upstream_Python_Fortran.txt):
+Sample output of the upstream test.py built according to the author's
+instructions.
 
 ## Notes
 
-Pragmatically, these functions fill a gap in the math library ecosystem for C/C++:
+### <a name="namconv"> Naming conventions
 
-Library | Version | Quad precision | Complex zeta | Complex gamma
+Explaining how the names of the functions are consistent with the [C standard
+library](https://en.cppreference.com/c/numeric) and the [GCC quad-precision
+math library
+(libquadmath)](https://gcc.gnu.org/onlinedocs/gcc-16.1.0/libquadmath/).
+
+Point 0:  function names are ASCII; no Greek letters.
+
+Point 1:  the real [log gamma
+function](https://en.cppreference.com/c/numeric/math/lgamma) is called
+lgamma:
+
+          float lgammaf (float)
+         double lgamma  (double)
+    long double lgammal (long double)
+      _Float128 lgammaq (_Float128)
+
+The C standard library does not yet provide real or complex versions of
+zeta, zeta prime, or psi.  Some names from other libraries:
+
+Function | [GNU Scientific Library](https://www.gnu.org/software/gsl/doc/html/specfunc.html) | [C++ standard library](https://en.cppreference.com/cpp/numeric/special_functions) | [Boost Math](https://www.boost.org/doc/libs/latest/libs/math/doc/html/special.html) | [Python mpmath](https://mpmath.org)
 --- | --- | --- | --- | ---
-[C standard library](https://en.cppreference.com/w/c/numeric/math.html) | C99 | Yes (as extension) | No | No
-[C++ standard library](https://cppreference.net/cpp/numeric.html) | C++17 | Yes (as extension) | No | No
-[Boost Math](https://www.boost.org/library/latest/math/) | 1.90.0 | Yes | No | No
-[GNU Scientific Library](https://www.gnu.org/software/gsl/) | 2.8 | No | No | Yes
+ζ     | gsl_sf_zeta    | riemann_zeta | zeta    | zeta
+ζ′    |                |              |         | zeta (with derivative=1)
+log Γ | gsl_sf_lngamma | lgamma       | lgamma  | loggamma
+ψ     | gsl_sf_psi     |              | digamma | psi (with m=0) or digamma
+
+Point 2:  the precision is indicated by an optional 1-letter suffix:
+
+Suffix | C data type | Meaning on x86
+--- | --- | ---
+f | float | 32 bits (single precision)
+  | double | 64 bits (double precision)
+l | long double | 80 bits (extended precision)
+q | _Float128 | 128 bits (quad precision)
+
+One also finds suffixes of the form f<i>N</i> where <i>N</i> is the number of
+bits in the floating-point type.  This competing naming convention comes from
+[ISO/IEC TS 18661-3](https://open-std.org/JTC1/SC22/WG14/www/docs/n2601.pdf)
+(Floating-point extensions for C, Part 3: Interchange and extended types) and
+from [C++](https://en.cppreference.com/cpp/language/floating_literal).
+
+Point 3:  the names of functions taking complex numbers are formed by
+prefixing a c to the names of the corresponding real functions; e.g., [clogf,
+clog, and clogl](https://en.cppreference.com/c/numeric/complex/clog) as the
+complex analogs of [logf, log, and
+logl](https://en.cppreference.com/c/numeric/math/log).
+
+### Alternatives
 
 Other free implementations of zeta for complex s:
 
@@ -160,6 +218,37 @@ results for 128-bit floats.  "That means that the sum in rational form can be
 evaluated without cancellation error, albeit with double the number of
 coefficients for a given N."
 - [libquadmath/math/lgammaq.c](https://github.com/gcc-mirror/gcc/blob/master/libquadmath/math/lgammaq.c)
-partitions the domain into numerous segments, resulting in a much longer
+partitions the domain into many segments, resulting in a much longer
 function.  I have not found any notes or documentation for this
 implementation.
+
+### Floating point type traits
+
+[Standard C library header float.h](https://en.cppreference.com/c/header/float)
+
+lib/gcc/x86_64-pc-linux-gnu/17.0.0/include/float.h
+
+DIG:  Number of decimal digits, q, such that any floating-point number with q
+decimal digits can be rounded into a floating-point number with p radix b
+digits and back again without change to the q decimal digits.  Number of
+decimal digits that are guaranteed to be preserved in text →
+float/double/long double → text roundtrip without change due to rounding or
+overflow.
+
+DECIMAL_DIG:  Number of decimal digits, n, such that any floating-point
+number in the widest supported floating type with pmax radix b digits can be
+rounded to a floating-point number with n decimal digits and back again
+without change to the value.  Conversion from float/double/long double to
+decimal with at least FLT_DECIMAL_DIG/DBL_DECIMAL_DIG/LDBL_DECIMAL_DIG digits
+and back is the identity conversion:  this is the decimal precision required
+to serialize/deserialize a floating-point value.
+
+type | sizeof | prefix | DIG | DECIMAL_DIG
+---: | ---: | ---: | ---: | ---:
+   _Float16 |  2 |  FLT16 |  3 |  5
+   _Float32 |  4 |  FLT32 |  6 |  9
+      float |  4 |    FLT |  6 |  9
+   _Float64 |  8 |  FLT64 | 15 | 17
+     double |  8 |    DBL | 15 | 17
+long double | 16 |   LDBL | 18 | 21
+  _Float128 | 16 | FLT128 | 33 | 36

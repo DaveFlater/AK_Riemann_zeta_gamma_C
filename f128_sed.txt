@@ -1,0 +1,42 @@
+# Changes to convert upstream gamma_zeta_module.f90 to f128.f90
+
+# selected_real_kind(33, 4931) = C_FLOAT128 = C_FLOAT128_COMPLEX = 16
+# Having separate named constants for the complex kinds makes no sense as the
+# complex declaration apparently takes the kind of the component reals.
+# They're all the same, but using the named constants from the ISO C binding
+# makes a warning go away.
+/^module gamma_zeta_module[[:blank:]]*$/ a \
+    use iso_c_binding
+s/selected_real_kind(33, 4931)/C_FLOAT128/
+
+# For four relevant functions:
+# 1. Add C bindings.
+# 2. Change input parameters to pass-by-value.
+# Shim Riemann_zeta_prime to return a derived type:  C binding rejects
+# fixed-size arrays.
+
+# czetaq
+/function Riemann_zeta(s) result/,/intent(in)/ s/intent(in)/intent(in), value/
+s/function Riemann_zeta(s) result/function Riemann_zeta(s) bind(C, name="czetaq") result/
+
+# czetapq
+/parameter   :: ii/ a \
+    type, bind(C) :: czetapq_result\
+      complex(kind=qp) :: zeta\
+      complex(kind=qp) :: zetap\
+    end type
+/function Riemann_zeta_prime(s) result/,/intent(in)/ s/intent(in)/intent(in), value/
+s/function Riemann_zeta_prime(s) result(f)/function Riemann_zeta_prime(s) bind(C, name="czetapq") result(fstruct)/
+/f(1:2), g(1:2), chi(1:2)/ a \
+    type(czetapq_result) :: fstruct
+/end function Riemann_zeta_prime[[:blank:]]*$/ i \
+    fstruct%zeta=f(1)\
+    fstruct%zetap=f(2)
+
+# clgammaq
+/function ln_gamma(z) result/,/intent(in)/ s/intent(in)/intent(in), value/
+s/function ln_gamma(z) result/function ln_gamma(z) bind(C, name="clgammaq") result/
+
+# cpsiq
+/function psi(z) result/,/intent(in)/ s/intent(in)/intent(in), value/
+s/function psi(z) result/function psi(z) bind(C, name="cpsiq") result/

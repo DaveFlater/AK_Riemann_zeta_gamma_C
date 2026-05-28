@@ -1,28 +1,66 @@
 .EXTRA_PREREQS = Makefile
 
-# Normal, build as C
 CC = gcc
-CFLAGS = -std=gnu23 -O2 -Wall -Wextra
-normal:  zeta gamma test
-zeta.o:  zeta.c  Riemann_zeta.h common.h
-gamma.o: gamma.c Riemann_zeta.h common.h
-test.o:  test.c  Riemann_zeta.h common.h
-zeta:    zeta.o  Riemann_zeta.o common.o
-gamma:   gamma.o Riemann_zeta.o common.o
-test:    test.o  Riemann_zeta.o common.o
-
-# Optional, test build as C++
 CXX = g++
-CXXFLAGS = -std=gnu++26 -O2 -Wall -Wextra
-cxx:         zeta_cxx gamma_cxx test_cxx
-zeta_cxx.o:  zeta.c      Riemann_zeta.h common.h
-gamma_cxx.o: gamma.c     Riemann_zeta.h common.h
-test_cxx.o:  test.c      Riemann_zeta.h common.h
-zeta_cxx:    zeta_cxx.o  Riemann_zeta.o common_cxx.o
-gamma_cxx:   gamma_cxx.o Riemann_zeta.o common_cxx.o
-test_cxx:    test_cxx.o  Riemann_zeta.o common_cxx.o
+FC = gfortran
+AR = gcc-ar
+OPTFLAGS = -O2 -flto
+CFLAGS = -std=gnu23 $(OPTFLAGS) -Wall -Wextra
+CXXFLAGS = -std=gnu++26 $(OPTFLAGS) -Wall -Wextra
+FFLAGS = $(OPTFLAGS) -Wall -Wextra -Wno-tabs
+ARFLAGS =
+LDFLAGS = $(OPTFLAGS) -L. -s
 
+NORMALBINS = clgammaq cpsiq czetap czetapq test
+CXXBINS = clgammaq_cxx cpsiq_cxx czetap_cxx czetapq_cxx test_cxx
+
+normal: $(NORMALBINS)
+cxx: $(CXXBINS)
 all: normal cxx
+
+# Built sources
+f64.f90: upstream_src/Riemann_zeta_module.f90 f64_sed.txt
+	sed -f f64_sed.txt upstream_src/Riemann_zeta_module.f90 > $@
+f128.f90: upstream_src/gamma_zeta_module.f90 f128_sed.txt
+	sed -f f128_sed.txt upstream_src/gamma_zeta_module.f90 > $@
+
+libakzeta.a: f64.o f128.o
+	$(AR) rcsv $(ARFLAGS) $@ $^
+
+clgammaq.o:       clgammaq.c   common.h akzeta.h
+clgammaq_cxx.o:   clgammaq.c   common.h akzeta.h
+cpsiq.o:          cpsiq.c   common.h akzeta.h
+cpsiq_cxx.o:      cpsiq.c   common.h akzeta.h
+czetap.o:         czetap.c     common.h akzeta.h
+czetap_cxx.o:     czetap.c     common.h akzeta.h
+czetapq.o:        czetapq.c    common.h akzeta.h
+czetapq_cxx.o:    czetapq.c    common.h akzeta.h
+test.o:           test.c common.h akzeta.h
+test_cxx.o:       test.c common.h akzeta.h
+# plot.o:           plot.c common.h akzeta.h
+
+clgammaq:      clgammaq.o common.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common.o -lakzeta
+clgammaq_cxx:  clgammaq_cxx.o common_cxx.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common_cxx.o -lakzeta
+cpsiq:         cpsiq.o common.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common.o -lakzeta
+cpsiq_cxx:     cpsiq_cxx.o common_cxx.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common_cxx.o -lakzeta
+czetap:        czetap.o common.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common.o -lakzeta
+czetap_cxx:    czetap_cxx.o common_cxx.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common_cxx.o -lakzeta
+czetapq:       czetapq.o common.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common.o -lakzeta
+czetapq_cxx:   czetapq_cxx.o common_cxx.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common_cxx.o -lakzeta
+test:          test.o common.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common.o -lakzeta
+test_cxx:      test_cxx.o common_cxx.o libakzeta.a
+	$(FC) $(LDFLAGS) -o $@ $< common_cxx.o -lakzeta
+# plot:          plot.o common.o libakzeta.a
+# 	$(FC) $(LDFLAGS) -o $@ $< common.o -lakzeta -lpng
 
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<
@@ -30,18 +68,11 @@ all: normal cxx
 %_cxx.o : %.c
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-% : %.o
-	gfortran -o $@ $^
-
-Riemann_zeta.o: Riemann_zeta.f90
-	gfortran -O2 -Wall -Wextra -Wno-real-q-constant -c Riemann_zeta.f90
+%.o : %.f90
+	$(FC) $(FFLAGS) -c $<
 
 README.html: README.md
 	python3 -m markdown -x tables README.md > README.html
 
 clean:
-	rm -f zeta gamma test zeta_cxx gamma_cxx test_cxx Riemann_zeta.o zeta.o gamma.o test.o common.o zeta_cxx.o gamma_cxx.o test_cxx.o common_cxx.o riemann_zeta_module.mod README.html
-
-# Quick and dirty, does not put the files in a subdirectory
-dist:
-	tar cvJf Riemann_zeta.tar.xz Makefile *.f90 *.c *.h *.txt *.md
+	rm -f $(NORMALBINS) $(CXXBINS) *.o *.mod libakzeta.a f64.f90 f128.f90 README.html

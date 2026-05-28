@@ -1,0 +1,40 @@
+# Changes to convert upstream Riemann_zeta_module.f90 to f64.f90
+
+# selected_real_kind(33, 4931) = C_FLOAT128 = C_FLOAT128_COMPLEX = 16
+# C_DOUBLE = C_DOUBLE_COMPLEX = 8
+# Having separate named constants for the complex kinds makes no sense as the
+# complex declaration apparently takes the kind of the component reals.
+# They're all the same, but using the named constants from the ISO C binding
+# makes a warning go away.
+/^module Riemann_zeta_module[[:blank:]]*$/ a \
+    use iso_c_binding
+s/selected_real_kind(33, 4931)/C_FLOAT128/
+
+# For two relevant functions:
+# 1. Add C bindings.
+# 2. Change input parameters to pass-by-value.
+# 3. Shim to return the needed types:
+# - Double precision functions return f64 not f128
+# - C binding rejects fixed-size arrays but will take a derived type (struct)
+
+# czeta
+/function Riemann_zeta(s) result/,/intent(in)/ s/intent(in)/intent(in), value/
+s/function Riemann_zeta(s) result(f)/function Riemann_zeta(s) bind(C, name="czeta") result(f64)/
+/f, g(1:2)/ a \
+    complex (kind=C_DOUBLE) :: f64
+/end function Riemann_zeta[[:blank:]]*$/ i \
+    f64=cmplx(f,kind=C_DOUBLE)
+
+# czetap
+/parameter   :: ii/ a \
+    type, bind(C) :: czetap_result\
+      complex(kind=C_DOUBLE) :: zeta\
+      complex(kind=C_DOUBLE) :: zetap\
+    end type
+/function Riemann_zeta_prime(s) result/,/intent(in)/ s/intent(in)/intent(in), value/
+s/function Riemann_zeta_prime(s) result(f)/function Riemann_zeta_prime(s) bind(C, name="czetap") result(fstruct)/
+/f(1:2), g(1:2), chi(1:2)/ a \
+    type(czetap_result) :: fstruct
+/end function Riemann_zeta_prime[[:blank:]]*$/ i \
+    fstruct%zeta=cmplx(f(1),kind=C_DOUBLE)\
+    fstruct%zetap=cmplx(f(2),kind=C_DOUBLE)
