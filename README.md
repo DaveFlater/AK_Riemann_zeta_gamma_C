@@ -245,10 +245,10 @@ to serialize/deserialize a floating-point value.
 
 type | sizeof | prefix | DIG | DECIMAL_DIG
 ---: | ---: | ---: | ---: | ---:
-   _Float16 |  2 |  FLT16 |  3 |  5
-   _Float32 |  4 |  FLT32 |  6 |  9
-      float |  4 |    FLT |  6 |  9
-   _Float64 |  8 |  FLT64 | 15 | 17
-     double |  8 |    DBL | 15 | 17
+_Float16 |  2 |  FLT16 |  3 |  5
+_Float32 |  4 |  FLT32 |  6 |  9
+   float |  4 |    FLT |  6 |  9
+_Float64 |  8 |  FLT64 | 15 | 17
+  double |  8 |    DBL | 15 | 17
 long double | 16 |   LDBL | 18 | 21
-  _Float128 | 16 | FLT128 | 33 | 36
+_Float128 | 16 | FLT128 | 33 | 36
